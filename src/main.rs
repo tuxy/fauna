@@ -1,140 +1,89 @@
 use macroquad::prelude::*;
-// use glam::vec3;
+use rapier3d::prelude::*;
+use rayon::prelude::*;
+use object::{Object, ShapeKind};
+use ::rand::{thread_rng, Rng};
 
-const MOVE_SPEED: f32 = 0.1;
-const LOOK_SPEED: f32 = 0.1;
+mod object;
+mod physics;
 
-fn conf() -> Conf {
-    Conf {
-        window_title: String::from("Macroquad"),
-        window_width: 1260,
-        window_height: 768,
-        fullscreen: false,
-        ..Default::default()
-    }
-}
-
-#[macroquad::main(conf)]
+#[macroquad::main("3D")]
 async fn main() {
-    let mut x = 0.0;
-    let mut switch = false;
-    let bounds = 8.0;
+    let mut rigid_body_set = RigidBodySet::new();
+    let mut collider_set = ColliderSet::new();
 
-    let world_up = vec3(0.0, 1.0, 0.0);
-    let mut yaw: f32 = 1.18;
-    let mut pitch: f32 = 0.0;
+    // PLANE -> Doesn't use struct for now
+    let collider = ColliderBuilder::cuboid(10.0, 0.1, 10.0).build();
+    collider_set.insert(collider);
+    // PLANE
 
-    let mut front = vec3(
-        yaw.cos() * pitch.cos(),
-        pitch.sin(),
-        yaw.sin() * pitch.cos(),
-    )
-    .normalize();
-    let mut right = front.cross(world_up).normalize();
-    let mut up = right.cross(front).normalize();
+    let mut objects: Vec<Object> = vec![];
+    let mut rigidbodies: Vec<RigidBodyHandle> = vec![];
 
-    let mut position = vec3(0.0, 1.0, 0.0);
-    let mut last_mouse_position: Vec2 = mouse_position().into();
+    let mut rand = thread_rng();
+    
+    for _ in 1..100 {
+        let sphere = Object {
+            shape_kind: object::ShapeKind::Sphere(0.5),
+        };
 
-    let mut grabbed = true;
-    set_cursor_grab(grabbed);
-    show_mouse(false);
+        let sphere_collider = ColliderBuilder::ball(0.5).restitution(0.7).build();
+        let sphere_rigidbody = RigidBodyBuilder::dynamic()
+            .translation(vector![rand.gen_range(0.0..1.0), rand.gen_range(9.0..11.0), rand.gen_range(0.0..1.0)])
+            .build();
 
+        objects.push(sphere);
+
+        let sphere_handle = rigid_body_set.insert(sphere_rigidbody);
+        rigidbodies.push(sphere_handle);
+        collider_set.insert_with_parent(sphere_collider, sphere_handle, &mut rigid_body_set);
+    }
+
+    // Initialise physics and values with default values
+    let mut main_physics = physics::MainPhysicsStructure {
+        ..Default::default()
+    };
+    // Main loop
     loop {
-        let delta = get_frame_time();
 
-        if is_key_pressed(KeyCode::Escape) {
-            break;
-        }
-        if is_key_pressed(KeyCode::Tab) {
-            grabbed = !grabbed;
-            set_cursor_grab(grabbed);
-            show_mouse(!grabbed);
-        }
-
-        if is_key_down(KeyCode::Up) {
-            position += front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Down) {
-            position -= front * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Left) {
-            position -= right * MOVE_SPEED;
-        }
-        if is_key_down(KeyCode::Right) {
-            position += right * MOVE_SPEED;
-        }
-
-        let mouse_position: Vec2 = mouse_position().into();
-        let mouse_delta = mouse_position - last_mouse_position;
-
-        last_mouse_position = mouse_position;
-
-        if grabbed {
-            yaw += mouse_delta.x * delta * LOOK_SPEED;
-            pitch += mouse_delta.y * delta * -LOOK_SPEED;
-
-            pitch = if pitch > 1.5 { 1.5 } else { pitch };
-            pitch = if pitch < -1.5 { -1.5 } else { pitch };
-
-            front = vec3(
-                yaw.cos() * pitch.cos(),
-                pitch.sin(),
-                yaw.sin() * pitch.cos(),
-            )
-            .normalize();
-
-            right = front.cross(world_up).normalize();
-            up = right.cross(front).normalize();
-
-            x += if switch { 0.04 } else { -0.04 };
-            if x >= bounds || x <= -bounds {
-                switch = !switch;
-            }
-        }
+        main_physics.step(&mut rigid_body_set, &mut collider_set);
 
         clear_background(LIGHTGRAY);
 
-        // Going 3d!
-
         set_camera(&Camera3D {
-            position: position,
-            up: up,
-            target: position + front,
+            position: vec3(-20., 10., 30.),
+            up: vec3(0., 1., 0.),
+            target: vec3(0., 0., 0.),
             ..Default::default()
         });
 
+        for (idx, object) in objects.iter().enumerate() {
+            let body= &rigid_body_set[rigidbodies[idx]];
+            match object.shape_kind {
+                ShapeKind::Sphere(r) => draw_sphere(
+                    Vec3::new(body.translation().x, body.translation().y, body.translation().z),
+                    r,
+                    None,
+                    RED
+                ),
+                ShapeKind::Cuboid(dim) => draw_cube(
+                    Vec3::new(body.translation().x, body.translation().y, body.translation().z),
+                    dim,
+                    None,
+                    GRAY
+                ),
+                ShapeKind::Plane(dim) => draw_plane(Vec3::new(body.translation().x, body.translation().y, body.translation().z), 
+                    dim, 
+                    None, 
+                    BLACK
+                ),
+            };
+        }
+
         draw_grid(20, 1., BLACK, GRAY);
 
-        draw_line_3d(
-            vec3(x, 0.0, x),
-            vec3(5.0, 5.0, 5.0),
-            Color::new(1.0, 1.0, 0.0, 1.0),
-        );
-
-        draw_cube_wires(vec3(0., 1., -6.), vec3(2., 2., 2.), GREEN);
-        draw_cube_wires(vec3(0., 1., 6.), vec3(2., 2., 2.), BLUE);
-        draw_cube_wires(vec3(2., 1., 2.), vec3(2., 2., 2.), RED);
-
-        // Back to screen space, render some text
-
         set_default_camera();
-        draw_text("First Person Camera", 10.0, 20.0, 30.0, BLACK);
-
-        draw_text(
-            format!("X: {} Y: {}", mouse_position.x, mouse_position.y).as_str(),
-            10.0,
-            48.0 + 18.0,
-            30.0,
-            BLACK,
-        );
-        draw_text(
-            format!("Press <TAB> to toggle mouse grab: {grabbed}").as_str(),
-            10.0,
-            48.0 + 42.0,
-            30.0,
-            BLACK,
-        );
+        draw_text(format!("{}", get_fps()).as_str(), 50.0, 50.0, 15.0, BLACK);
 
         next_frame().await
     }

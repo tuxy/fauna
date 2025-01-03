@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 macroquad = "0.4.13"
+rand = "0.8.5"
+rapier3d = { version = "0.22.0", features = ["parallel", "simd-stable"] }
+rayon = "1.10.0"
