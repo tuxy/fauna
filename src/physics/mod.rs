@@ -18,6 +18,7 @@ pub struct MainPhysicsStructure {
 }
 
 impl Default for MainPhysicsStructure {
+    // Default values to avoid having to change
     fn default() -> MainPhysicsStructure {
         MainPhysicsStructure {
             gravity: vector![0.0, -9.81, 0.0],
@@ -37,6 +38,7 @@ impl Default for MainPhysicsStructure {
 }
 
 impl MainPhysicsStructure {
+    // Passes in all physics-related structs and steps through simulation for a single frame
     pub fn step(&mut self, rigid_body_set: &mut RigidBodySet, collider_set: &mut ColliderSet) {
         self.physics_pipeline.step(
             &self.gravity,
