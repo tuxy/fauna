@@ -1,3 +1,5 @@
+use std::num::NonZero;
+
 use macroquad::prelude::*;
 use rapier3d::prelude::*;
 use object::*;
@@ -71,6 +73,10 @@ async fn main() {
             
             main_physics = physics::MainPhysicsStructure {
                 gravity: vector![0.0, ui_options.gravity, 0.0],
+                integration_parameters: IntegrationParameters {
+                    dt: get_frame_time() * ui_options.sim_speed,
+                    ..Default::default()
+                },
                 ..Default::default()
             };
             ui_options.reset = !ui_options.reset;
@@ -130,7 +136,7 @@ async fn main() {
         // A grid, corresponding to the collision plane 
         set_default_camera();
         // Shows fps
-        draw_text(format!("{}", get_fps()).as_str(), 50.0, 50.0, 15.0, BLACK);
+        draw_text(format!("{}", get_fps()).as_str(), 50.0, 50.0, 25.0, BLACK);
 
         next_frame().await
     }

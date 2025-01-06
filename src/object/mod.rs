@@ -22,20 +22,12 @@ impl Object {
     // Checks what kind of shape used and draws shape using macroquad
     pub fn draw_object(&self, pos: &nalgebra::Matrix<f32, nalgebra::Const<3>, nalgebra::Const<1>, nalgebra::ArrayStorage<f32, 3, 1>>) {
         match self.shape_kind {
-            ShapeKind::Sphere(r) => {
-                draw_sphere(
-                    Vec3::new(pos.x, pos.y, pos.z),
-                    r,
-                    None,
-                    self.color
-                );
-                draw_sphere_wires( // Also draw the wires for the spheres to more easily see
-                    Vec3::new(pos.x, pos.y, pos.z),
-                    r,
-                    None,
-                    BLACK
-                );
-            }
+            ShapeKind::Sphere(r) => draw_sphere(
+                Vec3::new(pos.x, pos.y, pos.z),
+                r,
+                None,
+                self.color
+            ),
             ShapeKind::Cuboid(dim) => draw_cube(
                 Vec3::new(pos.x, pos.y, pos.z),
                 dim,
