@@ -1,6 +1,6 @@
 use macroquad::prelude::*;
 use rapier3d::prelude::*;
-use object::Object;
+use object::*;
 use ::rand::{thread_rng, Rng};
 use ui::PhysicsOptions;
 
@@ -12,7 +12,7 @@ mod ui;
 async fn main() {
 
     // Initialise physics options with default values
-    let mut physics_options = PhysicsOptions {
+    let mut ui_options = PhysicsOptions {
         gravity: -9.81,
         bounciness: 0.7,
         frction: 0.7,
@@ -23,11 +23,6 @@ async fn main() {
     let mut rigid_body_set = RigidBodySet::new();
     let mut collider_set = ColliderSet::new();
 
-    // PLANE -> Doesn't use struct for now
-    let collider = ColliderBuilder::cuboid(10.0, 0.1, 10.0).build();
-    collider_set.insert(collider);
-    // PLANE
-
     let mut objects: Vec<Object> = vec![];
     let mut rigidbodies: Vec<RigidBodyHandle> = vec![];
 
@@ -36,11 +31,11 @@ async fn main() {
     // Creates 10 spheres with a random position along with its rigidbody and collider
     for _ in 1..10 {
         let sphere = Object {
+            dynamic: object::ObjectState::Dynamic, // Position is specified from make_dynamic function
             shape_kind: object::ShapeKind::Sphere(0.5),
             color: RED,
         };
-        object::draw_stateful(
-            sphere,
+        sphere.make_dynamic(
             &mut objects,
             &mut rigidbodies,
             Vec3::new(rand.gen_range(0.0..2.0), rand.gen_range(10.0..50.0), rand.gen_range(0.0..2.0)), 
@@ -48,6 +43,13 @@ async fn main() {
             &mut collider_set
         );
     }
+
+    let plane = Object {
+        dynamic: object::ObjectState::Static(Vec3::new(0.0, 0.0, 0.0)), // 
+        shape_kind: object::ShapeKind::Plane(Vec2::new(100.0, 100.0)),
+        color: GRAY,
+    };
+    plane.make_static(&mut objects, &mut collider_set);
 
     // Initialise physics and values with default values
     let mut main_physics = physics::MainPhysicsStructure {
@@ -58,17 +60,18 @@ async fn main() {
     // Main loop
     loop {
         // Currently broken
-        if physics_options.reset { // Checks if there is a pending reset for the simulation TODO
+        if ui_options.reset { // Checks if there is a pending reset for the simulation TODO
             main_physics = physics::MainPhysicsStructure {
-                gravity: vector![0.0, physics_options.gravity, 0.0],
+                gravity: vector![0.0, ui_options.gravity, 0.0],
                 ..Default::default()
             };
-            physics_options.reset = !physics_options.reset;
+            ui_options.reset = !ui_options.reset;
         }
 
-        physics_options.init_ui();
+        // Starts the UI for configuring the simulation
+        ui_options.init_ui();
 
-        // Steps through every frame
+        // Steps through every frame, with all of the collider and rigidbody sets, and ignores everything else
         main_physics.step(&mut rigid_body_set, &mut collider_set);
 
         clear_background(LIGHTGRAY);
@@ -81,17 +84,20 @@ async fn main() {
         });
 
         for (idx, object) in objects.iter().enumerate() {
-            let body= &rigid_body_set[rigidbodies[idx]];
-
-            let pos = body.translation();
-
-            // Draws the object based on its parameters
-            object.draw_object(pos);    
+            match object.dynamic {
+                ObjectState::Dynamic => {
+                    let body= &rigid_body_set[rigidbodies[idx]];
+                    // Draws the object based on its parameters (self)
+                    object.draw_object(body.translation()); 
+                },
+                ObjectState::Static(pos) => {
+                    // Draws static object
+                    object.draw_object(&vector![pos.x, pos.y, pos.z]);
+                }
+            }
         }
 
         // A grid, corresponding to the collision plane 
-        draw_grid(20, 1., BLACK, GRAY);
-
         set_default_camera();
         // Shows fps
         draw_text(format!("{}", get_fps()).as_str(), 50.0, 50.0, 15.0, BLACK);

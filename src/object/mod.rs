@@ -7,12 +7,19 @@ pub enum ShapeKind {
     Sphere(f32), // radius
 }
 
+pub enum ObjectState {
+    Dynamic,
+    Static(Vec3), // Position data
+}
+
 pub struct Object {
+    pub dynamic: ObjectState, // This won't be automatically detected
     pub shape_kind: ShapeKind,
     pub color: Color,
 }
 
 impl Object {
+    // Checks what kind of shape used and draws shape using macroquad
     pub fn draw_object(&self, pos: &nalgebra::Matrix<f32, nalgebra::Const<3>, nalgebra::Const<1>, nalgebra::ArrayStorage<f32, 3, 1>>) {
         match self.shape_kind {
             ShapeKind::Sphere(r) => draw_sphere(
@@ -34,31 +41,41 @@ impl Object {
             ),
         }
     }
-}
+    // Create an object with collision physics AND a rigidbody (Note that self isn't borrowed)
+    pub fn make_dynamic(self, objects: &mut Vec<Object>, rigidbodies: &mut Vec<RigidBodyHandle>, position: Vec3, r_set: &mut RigidBodySet, c_set: &mut ColliderSet) {
+        let collider = self.check_collider();
+    
+        let rigidbody = RigidBodyBuilder::dynamic()
+        .translation(vector![position.x, position.y, position.z])
+        .build();
+    
+        objects.push(self);
+    
+        let handle = r_set.insert(rigidbody);
+        rigidbodies.push(handle);
+        c_set.insert_with_parent(collider, handle, r_set);
+    }
 
-pub fn draw_stateful(object: Object, objects: &mut Vec<Object>, rigidbodies: &mut Vec<RigidBodyHandle>, position: Vec3, r_set: &mut RigidBodySet, c_set: &mut ColliderSet) {
-    let collider = match object.shape_kind {
-        ShapeKind::Sphere(r) => ColliderBuilder::ball(r)
-            .restitution(0.7) // TODO, add configurable bounciness?
-            .friction(0.7)
-            .build(),
-        ShapeKind::Cuboid(dim) => ColliderBuilder::cuboid(dim.x, dim.y, dim.z)
-            .restitution(0.7)
-            .friction(0.7)
-            .build(),
-        ShapeKind::Plane(dim) => ColliderBuilder::cuboid(dim.x, dim.y, 0.1)
-            .restitution(0.7)
-            .friction(0.7)
-            .build(),
-    };
+    pub fn make_static(self, objects: &mut Vec<Object>, c_set: &mut ColliderSet) {
+        let collider = self.check_collider();
+        c_set.insert(collider);
+        objects.push(self);
+    }
 
-    let rigidbody = RigidBodyBuilder::dynamic()
-    .translation(vector![position.x, position.y, position.z])
-    .build();
-
-    objects.push(object);
-
-    let handle = r_set.insert(rigidbody);
-    rigidbodies.push(handle);
-    c_set.insert_with_parent(collider, handle, r_set);
+    fn check_collider(&self) -> Collider {
+        match self.shape_kind {
+            ShapeKind::Sphere(r) => ColliderBuilder::ball(r)
+                .restitution(0.7) // TODO, add configurable bounciness?
+                .friction(0.7)
+                .build(),
+            ShapeKind::Cuboid(dim) => ColliderBuilder::cuboid(dim.x, dim.y, dim.z)
+                .restitution(0.7)
+                .friction(0.7)
+                .build(),
+            ShapeKind::Plane(dim) => ColliderBuilder::cuboid(dim.x, 0.1, dim.y)
+                .restitution(0.7)
+                .friction(0.7)
+                .build(),
+        }
+    }
 }
