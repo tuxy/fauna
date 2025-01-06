@@ -22,12 +22,20 @@ impl Object {
     // Checks what kind of shape used and draws shape using macroquad
     pub fn draw_object(&self, pos: &nalgebra::Matrix<f32, nalgebra::Const<3>, nalgebra::Const<1>, nalgebra::ArrayStorage<f32, 3, 1>>) {
         match self.shape_kind {
-            ShapeKind::Sphere(r) => draw_sphere(
-                Vec3::new(pos.x, pos.y, pos.z),
-                r,
-                None,
-                self.color
-            ),
+            ShapeKind::Sphere(r) => {
+                draw_sphere(
+                    Vec3::new(pos.x, pos.y, pos.z),
+                    r,
+                    None,
+                    self.color
+                );
+                draw_sphere_wires( // Also draw the wires for the spheres to more easily see
+                    Vec3::new(pos.x, pos.y, pos.z),
+                    r,
+                    None,
+                    BLACK
+                );
+            }
             ShapeKind::Cuboid(dim) => draw_cube(
                 Vec3::new(pos.x, pos.y, pos.z),
                 dim,
@@ -42,8 +50,8 @@ impl Object {
         }
     }
     // Create an object with collision physics AND a rigidbody (Note that self isn't borrowed)
-    pub fn make_dynamic(self, objects: &mut Vec<Object>, rigidbodies: &mut Vec<RigidBodyHandle>, position: Vec3, r_set: &mut RigidBodySet, c_set: &mut ColliderSet) {
-        let collider = self.check_collider();
+    pub fn make_dynamic(self, objects: &mut Vec<Object>, rigidbodies: &mut Vec<RigidBodyHandle>, position: Vec3, r_set: &mut RigidBodySet, c_set: &mut ColliderSet, raf: (f32, f32)) {
+        let collider = self.check_collider(raf);
     
         let rigidbody = RigidBodyBuilder::dynamic()
         .translation(vector![position.x, position.y, position.z])
@@ -56,25 +64,26 @@ impl Object {
         c_set.insert_with_parent(collider, handle, r_set);
     }
 
-    pub fn make_static(self, objects: &mut Vec<Object>, c_set: &mut ColliderSet) {
-        let collider = self.check_collider();
+    pub fn make_static(self, objects: &mut Vec<Object>, c_set: &mut ColliderSet, raf: (f32, f32)) {
+        let collider = self.check_collider(raf);
         c_set.insert(collider);
         objects.push(self);
     }
 
-    fn check_collider(&self) -> Collider {
+    // "raf" means restitution and friction
+    fn check_collider(&self, raf: (f32, f32)) -> Collider {
         match self.shape_kind {
             ShapeKind::Sphere(r) => ColliderBuilder::ball(r)
-                .restitution(0.7) // TODO, add configurable bounciness?
-                .friction(0.7)
+                .restitution(raf.0) // TODO, add configurable bounciness?
+                .friction(raf.1)
                 .build(),
             ShapeKind::Cuboid(dim) => ColliderBuilder::cuboid(dim.x, dim.y, dim.z)
-                .restitution(0.7)
-                .friction(0.7)
+                .restitution(raf.0)
+                .friction(raf.1)
                 .build(),
             ShapeKind::Plane(dim) => ColliderBuilder::cuboid(dim.x, 0.1, dim.y)
-                .restitution(0.7)
-                .friction(0.7)
+                .restitution(raf.0)
+                .friction(raf.1)
                 .build(),
         }
     }

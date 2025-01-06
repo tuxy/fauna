@@ -4,23 +4,25 @@ use macroquad::ui::{
     widgets,
 };
 
-pub struct PhysicsOptions {
+pub struct UiOptions {
+    pub item_count: f32,
     pub gravity: f32,
-    pub bounciness: f32,
+    pub restitution: f32,
     pub frction: f32, // TODO, how to put into the objects themselves.
     pub sim_speed: f32,
     pub reset: bool,
 }
 
-impl PhysicsOptions {
+impl UiOptions {
     pub fn init_ui(&mut self) {
         widgets::Window::new(hash!(), vec2(0., 0.), vec2(500., 200.))
             .label("Options")
             .titlebar(true)
             .ui(&mut *root_ui(), |ui| {
                 // Sliders for gravity, bounciness, friction and simulation speed
-                ui.slider(hash!(), "Gravity     [-10 .. 10]", -10f32..10f32, &mut self.gravity);
-                ui.slider(hash!(), "Bounciness  [0.0 .. 1.0]", 0f32..1f32, &mut self.bounciness);
+                ui.slider(hash!(), "Item Count  [1 .. 600]", 1f32..600f32, &mut self.item_count);
+                ui.slider(hash!(), "Gravity     [-20 .. 20]", -20f32..20f32, &mut self.gravity);
+                ui.slider(hash!(), "Bounciness  [0.0 .. 1.0]", 0f32..1f32, &mut self.restitution);
                 ui.slider(hash!(), "Friction    [0.0 .. 1.0]", 0f32..1f32, &mut self.frction);
                 ui.slider(hash!(), "Sim Speed   [0.0 .. 1.0]", 0f32..1f32, &mut self.sim_speed);
                 if ui.button(Vec2::new(0., 120.), "Apply & reset") {

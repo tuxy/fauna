@@ -2,7 +2,7 @@ use macroquad::prelude::*;
 use rapier3d::prelude::*;
 use object::*;
 use ::rand::{thread_rng, Rng};
-use ui::PhysicsOptions;
+use ui::UiOptions;
 
 mod object;
 mod physics;
@@ -12,12 +12,13 @@ mod ui;
 async fn main() {
 
     // Initialise physics options with default values
-    let mut ui_options = PhysicsOptions {
+    let mut ui_options = UiOptions {
+        item_count: 10.,
         gravity: -9.81,
-        bounciness: 0.7,
+        restitution: 0.7,
         frction: 0.7,
         sim_speed: 1.0,
-        reset: false // Starts off fresh
+        reset: true // Starts off fresh
     };
 
     let mut rigid_body_set = RigidBodySet::new();
@@ -28,29 +29,6 @@ async fn main() {
 
     let mut rand = thread_rng();
 
-    // Creates 10 spheres with a random position along with its rigidbody and collider
-    for _ in 1..10 {
-        let sphere = Object {
-            dynamic: object::ObjectState::Dynamic, // Position is specified from make_dynamic function
-            shape_kind: object::ShapeKind::Sphere(0.5),
-            color: RED,
-        };
-        sphere.make_dynamic(
-            &mut objects,
-            &mut rigidbodies,
-            Vec3::new(rand.gen_range(0.0..2.0), rand.gen_range(10.0..50.0), rand.gen_range(0.0..2.0)), 
-            &mut rigid_body_set, 
-            &mut collider_set
-        );
-    }
-
-    let plane = Object {
-        dynamic: object::ObjectState::Static(Vec3::new(0.0, 0.0, 0.0)), // 
-        shape_kind: object::ShapeKind::Plane(Vec2::new(100.0, 100.0)),
-        color: GRAY,
-    };
-    plane.make_static(&mut objects, &mut collider_set);
-
     // Initialise physics and values with default values
     let mut main_physics = physics::MainPhysicsStructure {
         gravity: vector![0.0, -9.81, 0.0],
@@ -59,8 +37,38 @@ async fn main() {
 
     // Main loop
     loop {
-        // Currently broken
         if ui_options.reset { // Checks if there is a pending reset for the simulation TODO
+            // Basically, we just do all the tasks performed before the main loop, but here.
+            rigid_body_set = RigidBodySet::new();
+            collider_set = ColliderSet::new();
+
+            // Empty vec
+            objects = vec![]; 
+            rigidbodies = vec![];
+
+            for _ in 1..ui_options.item_count as i32 {
+                let sphere = Object {
+                    dynamic: object::ObjectState::Dynamic, // Position is specified from make_dynamic function
+                    shape_kind: object::ShapeKind::Sphere(0.5),
+                    color: RED,
+                };
+                sphere.make_dynamic(
+                    &mut objects,
+                    &mut rigidbodies,
+                    Vec3::new(rand.gen_range(0.0..2.0), rand.gen_range(10.0..50.0), rand.gen_range(0.0..2.0)), 
+                    &mut rigid_body_set, 
+                    &mut collider_set,
+                    (0.7, 0.7) // Restitution (Bounciness) and friction
+                );
+            };
+
+            let plane = Object {
+                dynamic: object::ObjectState::Static(Vec3::new(0.0, -0.1, 0.0)),
+                shape_kind: object::ShapeKind::Plane(Vec2::new(50.0, 50.0)),
+                color: GRAY,
+            };
+            plane.make_static(&mut objects, &mut collider_set, (ui_options.restitution, ui_options.frction));
+            
             main_physics = physics::MainPhysicsStructure {
                 gravity: vector![0.0, ui_options.gravity, 0.0],
                 ..Default::default()
@@ -82,6 +90,28 @@ async fn main() {
             target: vec3(0., 0., 0.),
             ..Default::default()
         });
+
+        // Draw axis lines
+        draw_cube(
+            Vec3::ZERO,
+            Vec3::new(1000.0, 0.1, 0.1),
+            None,
+            RED
+        );
+        draw_cube(
+            Vec3::ZERO,
+            Vec3::new(0.1, 1000.0, 0.1),
+            None,
+            GREEN
+        );
+        draw_cube(
+            Vec3::ZERO,
+            Vec3::new(0.1, 0.1, 1000.0),
+            None,
+            BLUE
+        );
+        // Draw grid
+        draw_grid(26, 4.0, RED, BLACK);
 
         for (idx, object) in objects.iter().enumerate() {
             match object.dynamic {
