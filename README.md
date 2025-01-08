@@ -1,4 +1,4 @@
-![Showcase demonstrating a number of falling balls with customisation with rapier physics](./showcase.mkv)
+![Showcase demonstrating a number of falling balls with customisation with rapier physics](./showcase.gif)
 
 # 3D Physics showcase
 This is a new attempt at trying to implement physics into a "draw"-based graphics library. Previously, I tried creating sphere -> sphere & plane physics with [raylib](https://www.raylib.com/) and my own physics. Now, I'm using the rust-based [macroquad](https://macroquad.rs) and [rapier](https://rapier.rs/) physics.
