@@ -1,5 +1,3 @@
-use std::num::NonZero;
-
 use macroquad::prelude::*;
 use rapier3d::prelude::*;
 use object::*;
@@ -20,6 +18,7 @@ async fn main() {
         restitution: 0.7,
         frction: 0.7,
         sim_speed: 1.0,
+        randomize_color: true,
         reset: true // Starts off fresh
     };
 
@@ -49,10 +48,15 @@ async fn main() {
             rigidbodies = vec![];
 
             for _ in 1..ui_options.item_count as i32 {
+                let color = match ui_options.randomize_color {
+                    // Randomised color, for much easier depth perception
+                    true => Color::from_rgba(rand.gen_range(0..255),rand.gen_range(0..255), rand.gen_range(0..255), 255),
+                    false => RED, // Default sphere color
+                };
                 let sphere = Object {
                     dynamic: object::ObjectState::Dynamic, // Position is specified from make_dynamic function
                     shape_kind: object::ShapeKind::Sphere(0.5),
-                    color: RED,
+                    color: color,
                 };
                 sphere.make_dynamic(
                     &mut objects,
@@ -133,6 +137,7 @@ async fn main() {
             }
         }
 
+        
         // A grid, corresponding to the collision plane 
         set_default_camera();
         // Shows fps
